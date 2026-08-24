@@ -67,5 +67,3 @@ export default function Home() {
     </div>
   );
 }
-
-//Day 07
