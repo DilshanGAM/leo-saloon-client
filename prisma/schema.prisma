@@ -29,6 +29,14 @@ model User {
   orders Order[]
   paymentsMade Payment[] @relation("PaymentPaidBy")
   paymentsReviewed Payment[] @relation("PaymentReviewedBy")
+  appointmentsPlaced Appointment[] @relation("AppointmentPlacedBy")
+  appointmentsAssigned Appointment[] @relation("AppointmentAssignedTo")
+  appointmentsDone Appointment[] @relation("AppointmentDoneBy")
+
+  approvedLeaves Leave[] @relation("LeaveApprovedBy")
+  leaves Leave[] @relation("LeaveUser")
+  emailOTP emailOTP[]
+  cart Cart?
 } //gender, emailVerified, phoneVerified
 
 enum ProductStatus {
@@ -123,6 +131,7 @@ enum PaymentStatus {
   PENDING
   COMPLETED
   FAILED
+  REFUNDED
 }
 
 enum PaymentMethod{
@@ -138,7 +147,8 @@ model Payment{
   number Int @unique @default(autoincrement())
   amount Decimal
   orderId Int? @unique
-  reference String? @unique
+  appointmentId Int? @unique
+  reference String? @unique @default(uuid())
   
   status PaymentStatus @default(PENDING)
   paidByUserId String?
@@ -148,10 +158,11 @@ model Payment{
   fee Decimal @default(0.00)
   createdAt DateTime @default(now())
   receivedAt DateTime?
-  
+
   order Order? @relation(fields: [orderId], references: [id])
   paidBy User? @relation("PaymentPaidBy", fields: [paidByUserId], references: [id])
   reviewedBy User? @relation("PaymentReviewedBy", fields: [reviewedByUserId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
 }
 
 enum ServiceCategory{
@@ -190,4 +201,139 @@ model Variant{
   price Decimal
   serviceId String
   service Service @relation(fields: [serviceId], references: [id])
+}
+
+enum AppointmentStatus{
+  PENDING
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+model Appointment{
+  
+  id Int @id @default(autoincrement())
+  placedOn DateTime @default(now())
+  status AppointmentStatus @default(PENDING)
+
+  paymentId String? @unique
+
+  placedByUserId String
+  assignedToUserId String
+  doneByUserId String?
+
+  startTime DateTime
+  endTime DateTime
+  totalAmount Decimal
+  notes String?
+  
+  payment Payment?
+  appointmentTotalAdjustments AppointmentTotalAdjustment[]
+
+  placedBy User @relation("AppointmentPlacedBy", fields: [placedByUserId], references: [id])
+  assignedTo User @relation("AppointmentAssignedTo", fields: [assignedToUserId], references: [id])
+  doneBy User? @relation("AppointmentDoneBy", fields: [doneByUserId], references: [id])
+  appointmentServices AppointmentService[]
+
+}
+
+model AppointmentTotalAdjustment{
+
+  id String @id @default(uuid())
+  appointmentId Int
+  description String
+
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  
+
+}
+
+
+
+
+model AppointmentService{
+
+  id String @id @default(uuid())
+  appointmentId Int
+  serviceId String
+
+  price Decimal
+  name String
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+enum LeaveStatus{
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+model Leave{
+
+  id String @id @default(uuid())
+  userId String
+  approverId String?
+  startDate DateTime
+  endDate DateTime
+  reason String
+  leaveStatus LeaveStatus @default(PENDING)
+
+  approver User? @relation("LeaveApprovedBy", fields: [approverId], references: [id])
+  user User @relation("LeaveUser",fields: [userId], references: [id])
+  
+}
+
+model Holiday{
+
+  id String @id @default(uuid())
+  name String
+  date DateTime
+
+}
+
+enum OTPType{
+  FORGET_PASSWORD
+  EMAIL_VERIFICATION
+  ORDER_CONFIRMATION
+}
+model emailOTP{
+
+  id String @id @default(uuid())
+  userId String
+  email String
+  otp String
+  isUsed Boolean @default(false)
+  expiresAt DateTime
+  type OTPType
+  user User @relation(fields: [userId], references: [id])
+
+}
+
+
+model Cart{
+  id String @id @default(uuid())
+  
+  userId String? @unique
+
+  user User? @relation(fields: [userId], references: [id]) 
+
+  lastUpdated DateTime @updatedAt
+  cartItems CartItem[]
+  notes String?
+
+}
+
+model CartItem{
+  id String @id @default(uuid())
+  cartId String
+  productId String
+  name String
+  price Decimal
+  compareAt Decimal?
+  quantity Int
+  
+  cart Cart @relation(fields: [cartId], references: [id])
+  
 }
